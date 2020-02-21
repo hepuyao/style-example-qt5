@@ -8,7 +8,7 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QToolBar>
-
+#include <QToolButton>
 #include "customstyle.h"
 
 /*!
@@ -70,6 +70,10 @@ int main(int argc, char *argv[])
     QLabel l2("CustomStyle继承自:");
     t.addWidget(&l2);
     t.addWidget(&c2);
+
+    QToolButton tolbtn;
+    tolbtn.setIcon(QIcon("/usr/share/ukui-panel/plugin-taskview/img/taskview.svg"));
+    t.addWidget(&tolbtn);
 
     settingsWindow.addToolBar(&t);
     settingsWindow.setCentralWidget(&w);

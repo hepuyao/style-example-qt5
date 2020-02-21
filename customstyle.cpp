@@ -1,5 +1,8 @@
 #include "customstyle.h"
 
+#include <QStyleOptionToolButton>
+#include <QPainter>
+#include <QApplication>
 CustomStyle::CustomStyle(const QString &proxyStyleName, QObject *parent) : QProxyStyle (proxyStyleName)
 {
 
@@ -7,11 +10,73 @@ CustomStyle::CustomStyle(const QString &proxyStyleName, QObject *parent) : QProx
 
 void CustomStyle::drawComplexControl(QStyle::ComplexControl control, const QStyleOptionComplex *option, QPainter *painter, const QWidget *widget) const
 {
+    if(control == CC_ToolButton)
+    {
+        /// 我们参考qt的官方文档和源码，可以知道ToolButton需要绘制的子控件似乎只有两个
+        /// QStyle::SC_ToolButton
+        /// QStyle::SC_ToolButtonMenu
+
+        /// 我们需要获取ToolButton的详细信息，通过qstyleoption_cast可以得到
+        /// 对应的option，通过拷贝构造函数得到一份备份用于绘制子控件
+        /// 我们一般不用在意option是怎么得到的，大部分的Qt控件都能够提供了option的init方法
+        const QStyleOptionToolButton opt = *qstyleoption_cast<const QStyleOptionToolButton*>(option);
+        QStyleOption tmp = opt;
+
+        /// 我们可以通过subControlRect获取对应子控件的rect
+        auto subLineRect = subControlRect(CC_ToolButton, option, SC_ToolButton);
+        tmp.rect = subLineRect;
+        drawControl(CE_ToolBoxTabLabel, &tmp, painter, widget);
+
+//        auto addLineRect = subControlRect(CC_ScrollBar, option, SC_ToolButton);
+//        tmp.rect = addLineRect;
+//        drawControl(CE_ToolBoxTabShape, &tmp, painter, widget);
+    }
     return QProxyStyle::drawComplexControl(control, option, painter, widget);
 }
 
 void CustomStyle::drawControl(QStyle::ControlElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const
 {
+    switch (element)
+    {
+    case CE_ToolBar:{
+        painter->save();
+        painter->setPen(Qt::black);
+        painter->setBrush(Qt::green);
+        painter->drawRect(option->rect.adjusted(0, 0, -1, 0));
+        painter->restore();
+        return;
+    }
+    case CE_ToolBoxTabShape:{
+        painter->save();
+        painter->setPen(Qt::black);
+        painter->setBrush(Qt::green);
+        painter->drawRect(option->rect.adjusted(0, 0, -1, 0));
+        painter->restore();
+        return;
+    }
+    case CE_ToolBoxTabLabel:{
+        QIcon icon;
+        if (option->state.testFlag(State_Horizontal)) {
+            icon = QIcon::fromTheme("pan-start-symbolic");
+        } else {
+            icon = QIcon::fromTheme("pan-up-symolic");
+        }
+
+        /// 这里我使用调色板绘制图标的底色
+        painter->setBrush(Qt::blue);
+        painter->drawRect(option->rect.adjusted(0, 0, -1, -1));
+        icon.paint(painter, option->rect, Qt::AlignCenter);
+        return;
+    }
+    case CE_HeaderEmptyArea:{
+        painter->save();
+        painter->setPen(Qt::black);
+        painter->setBrush(Qt::green);
+        painter->drawRect(option->rect.adjusted(0, 0, -1, 0));
+        painter->restore();
+        return;
+    }
+    }
     return QProxyStyle::drawControl(element, option, painter, widget);
 }
 
@@ -50,11 +115,23 @@ QRect CustomStyle::itemTextRect(const QFontMetrics &metrics, const QRect &rectan
     return QProxyStyle::itemTextRect(metrics, rectangle, alignment, enabled, text);
 }
 
+//
 int CustomStyle::pixelMetric(QStyle::PixelMetric metric, const QStyleOption *option, const QWidget *widget) const
 {
+    switch (metric){
+    case PM_ToolBarFrameWidth: {
+        return (int)12*qApp->devicePixelRatio();
+    }
+    case PM_ToolBarHandleExtent:{
+        return (int)12*qApp->devicePixelRatio();
+    }
+    default:
+        break;
+    }
     return QProxyStyle::pixelMetric(metric, option, widget);
 }
 
+//
 void CustomStyle::polish(QWidget *widget)
 {
     return QProxyStyle::polish(widget);
@@ -65,9 +142,12 @@ void CustomStyle::polish(QApplication *application)
     return QProxyStyle::polish(application);
 }
 
+//
 void CustomStyle::polish(QPalette &palette)
 {
-    return QProxyStyle::polish(palette);
+//    return QProxyStyle::polish(palette);
+    QProxyStyle::polish(palette);
+    palette.setBrush(QPalette::Foreground, Qt::black);
 }
 
 void CustomStyle::unpolish(QWidget *widget)
@@ -95,8 +175,20 @@ QPalette CustomStyle::standardPalette() const
     return QProxyStyle::standardPalette();
 }
 
+//如果需要背景透明也许需要用到这个函数
 int CustomStyle::styleHint(QStyle::StyleHint hint, const QStyleOption *option, const QWidget *widget, QStyleHintReturn *returnData) const
 {
+    switch (hint) {
+    /// 让ScrollView viewport的绘制区域包含scrollbar和corner widget
+    /// 这个例子中没有什么作用，如果我们需要绘制一个背景透明的滚动条
+    /// 这个style hint对我们的意义应该很大，因为我们希望视图能够帮助
+    /// 我们填充滚动条的背景区域，否则当背景透明时底下会出现明显的分割
+    case SH_ScrollView_FrameOnlyAroundContents: {
+        return false;
+    }
+    default:
+        break;
+    }
     return QProxyStyle::styleHint(hint, option, widget, returnData);
 }
 
